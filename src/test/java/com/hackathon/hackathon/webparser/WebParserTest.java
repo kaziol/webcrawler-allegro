@@ -26,7 +26,7 @@ public class WebParserTest {
 
     @Test
     public void saveFile() throws Exception {
-        webParser.saveTextFileFromWebsite("http://onet.pl");
+        webParser.saveTextFileFromWebsite("http://allegro.pl/show_item.php?item=7018835713&sh_dwh_token=d0b6dd74a8394345128e20d296cb1c5e");
     }
 
 }
