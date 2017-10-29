@@ -8,7 +8,15 @@ public class VisitedUrl {
     @Id
     String url;
     Boolean parsed;
+    String auctionId;
 
+    public String getAuctionId() {
+        return auctionId;
+    }
+
+    public void setAuctionId(String auctionId) {
+        this.auctionId = auctionId;
+    }
 
     public Boolean getParsed() {
         return parsed;
@@ -20,6 +28,7 @@ public class VisitedUrl {
 
 
     public VisitedUrl() {
+        this.parsed=false;
     }
 
     public VisitedUrl(String url, Boolean parsed) {

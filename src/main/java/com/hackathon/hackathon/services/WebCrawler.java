@@ -5,7 +5,6 @@ import com.hackathon.hackathon.dto.VisitedUrl;
 import com.hackathon.hackathon.repositories.VisitedUrlRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +29,7 @@ public class WebCrawler  {
     public String crawl(String url){
         VisitedUrl visitedUrl  = new VisitedUrl();
         visitedUrl.setUrl(url);
-        visitedUrlRepository.save(visitedUrl);
+        visitedUrlRepository.saveAndFlush(visitedUrl);
         Document xml = null;
         try {
             xml = Jsoup.connect(url).get();
@@ -40,7 +39,7 @@ public class WebCrawler  {
         }
 
         if(!url.endsWith(".css")){
-            WebParser wp = new WebParser(url);
+            WebParser wp = new WebParser(url, visitedUrlRepository);
             Thread t1 = new Thread(wp);
             t1.start();
         }

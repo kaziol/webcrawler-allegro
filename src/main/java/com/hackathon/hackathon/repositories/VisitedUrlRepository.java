@@ -11,5 +11,7 @@ public interface VisitedUrlRepository extends JpaRepository<VisitedUrl, String> 
     List<VisitedUrl> findAllByParsed(boolean parsed);
     VisitedUrl findByParsed(boolean parsed);
     VisitedUrl findByUrl(String url);
+    VisitedUrl findByAuctionId(String id);
+    VisitedUrl findByAuctionIdAndAndParsed(String id, Boolean parsed);
 
 }

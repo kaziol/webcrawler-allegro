@@ -1,7 +1,10 @@
 package com.hackathon.hackathon.services;
+import com.hackathon.hackathon.dto.VisitedUrl;
+import com.hackathon.hackathon.repositories.VisitedUrlRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 
+import javax.transaction.Transactional;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -9,22 +12,27 @@ import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class WebParser implements Runnable {
 
+    VisitedUrlRepository visitedUrlRepository;
+
     final String specialChars = "[!@#$%^&*()_=+{\\[}\\]|;:'<>?}\"”„\t]";
 
-    final String [] ecludedWords= {"ach","aj","albo","bardzo","bez","bo","być","ci","cię",
-            "ciebie","co","czy","daleko","dla","dlaczego","dlatego","do","dobrze","dokąd","dość",
-            "dużo","dwa","dwaj","dwie","dwoje","dziś","dzisiaj","gdyby","gdzie","go","ich","ile","im","inny","ja",
-            "ją","jak","jakby","jaki","je","jeden","jedna","jedno","jego","jej","jemu","jeśli","jest",
-            "jestem","jeżeli",	"już","każdy","kiedy","kierunku","kto","ku","lub","ma","mają","mam","mi","mną","mnie",
-            "moi","mój","moja","moje","może","mu","my","na","nam","nami","nas","nasi","nasz","nasza","nasze","natychmiast",
-            "nią","nic","nich","nie","niego","niej","niemu","nigdy","nim","nimi","niż","obok","od","około",
-            "on","ona","one","oni","ono","owszem","po",	"pod","ponieważ","przed","przedtem","są","sam","sama","się","skąd","tak","taki","tam","ten","to","tobą","tobie","tu","tutaj","twoi","twój","twoja",
-            "twoje","ty","wam","wami","was","wasi","wasz","wasza","wasze","we","więc","wszystko","wtedy","wy","żaden","zawsze","że"};
+    final String [] ecludedWords= {"ach","aj","albo","bardzo","bez","bo","być","ci","cie",
+            "ciebie","co","czy","daleko","dla","dlaczego","dlatego","do","dobrze","dokąd","dosc",
+            "duzo","dwa","dwaj","dwie","dwoje","dziś","dzisiaj","gdyby","gdzie","go","ich","ile","im","inny","ja",
+            "ja","jak","jakby","jaki","je","jeden","jedna","jedno","jego","jej","jemu","jesli","jest",
+            "jestem","jezeli",	"już","kazdy","kiedy","kierunku","kto","ku","lub","ma","mają","mam","mi","mna","mnie",
+            "moi","mój","moja","moje","moze","mu","my","na","nam","nami","nas","nasi","nasz","nasza","nasze","natychmiast",
+            "nia","nic","nich","nie","niego","niej","niemu","nigdy","nim","nimi","niz","obok","od","okolo",
+            "on","ona","one","oni","ono","owszem","po",	"pod","poniewaz","przed","przedtem","sa","sam","sama",
+            "sie","skad","tak","taki","tam","ten","to","toba","tobie","tu","tutaj","twoi","twoj","twoja",
+            "twoje","ty","wam","wami","was","wasi","wasz","wasza","wasze","we","wiec","wszystko","wtedy","wy",
+            "zaden","zawsze","ze"};
 
     final String [] categoriesArray={"Fotografia","Akcesoria fotograficzne","Aparaty analogowe","Aparaty cyfrowe",
             "Karty pamięci","Lampy błyskowe","Obiektywy","Wyposażenie studia","Zasilanie aparatów","Literatura i instrukcje",
@@ -54,8 +62,9 @@ public class WebParser implements Runnable {
     public WebParser() {
     }
 
-    public WebParser(String url){
+    public WebParser(String url, VisitedUrlRepository visitedUrlRepository){
         this.url=url;
+        this.visitedUrlRepository=visitedUrlRepository;
     }
 
 
@@ -94,9 +103,25 @@ public class WebParser implements Runnable {
 
             String description = getDescritpion();
             phrases.put("description", description);
-            String title = xml.getElementsByTag("title").first().ownText();
+            String auctionTitle = xml.getElementsByTag("title").first().ownText();
             String nameCleanerRgx="\\(\\d+\\) - Allegro.pl - Więcej niż aukcje.";
-            title=title.replaceAll(nameCleanerRgx,"");
+            String title=auctionTitle.replaceAll(nameCleanerRgx,"");
+            String patternId  = "(.+\\()(\\d+)(\\) - Allegro.pl - Więcej niż aukcje.)";
+            Pattern regex = Pattern.compile(patternId);
+            Matcher matcher = regex.matcher(auctionTitle);
+            matcher.matches();
+            String auctionId=matcher.group(2);
+          //  String auctionId =auctionTitle.replaceAll(patternId,"\\3");
+            VisitedUrl dbUrl = visitedUrlRepository.findByAuctionIdAndAndParsed(auctionId,true);
+            if(dbUrl!= null && dbUrl.getParsed()) {
+                VisitedUrl currentUrl = new VisitedUrl();
+                currentUrl.setAuctionId(auctionId);
+                currentUrl.setUrl(url);
+                visitedUrlRepository.saveAndFlush(currentUrl);
+                return null;
+            };
+            phrases.put("auctionId", auctionId);
+
             phrases.put("nazwa", removeSpecChars(title));
             Element attContainer= xml.getElementsByClass("attributes-container").first();
             for(Element record: attContainer.getElementsByTag("li")){
@@ -154,6 +179,7 @@ public class WebParser implements Runnable {
             File file = new File(timestamp + ".csv");
             PrintWriter out = new PrintWriter(file);
             String description = phrases.remove("description");
+            String auctionId = phrases.remove("auctionId");
             for(String key:phrases.keySet()){
                 out.write(removeSpecChars(key)+"\t");
             }
@@ -165,6 +191,11 @@ public class WebParser implements Runnable {
             out.write(removeSpecChars(description));
             out.write("\r\n");
             out.close();
+            VisitedUrl visitedUrl = new VisitedUrl();
+            visitedUrl.setUrl(url);
+            visitedUrl.setParsed(true);
+            visitedUrl.setAuctionId(auctionId);
+            visitedUrlRepository.saveAndFlush(visitedUrl);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -172,7 +203,10 @@ public class WebParser implements Runnable {
 
 
     @Override
+    @Transactional
     public void run() {
+        boolean alreadyParsed= visitedUrlRepository.findByUrl(url).getParsed();
+        if(!alreadyParsed)
         saveTextFileFromWebsite(getParameters());
     }
 }
