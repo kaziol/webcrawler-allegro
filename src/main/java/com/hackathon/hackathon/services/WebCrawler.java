@@ -1,4 +1,4 @@
-package com.hackathon.hackathon.crawler;
+package com.hackathon.hackathon.services;
 
 
 import com.hackathon.hackathon.dto.VisitedUrl;
@@ -10,57 +10,50 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
-public class WebCrawler implements Runnable  {
-
+public class WebCrawler  {
     @Autowired
     VisitedUrlRepository visitedUrlRepository;
-    public final String [] initialSites= {"https://allegro.pl/", "http://www.ceneo.pl"};
+    public final String initialSite= "https://allegro.pl/";
+  //  public final String initialSite= "https://webcache.googleusercontent.com/search?q=cache:Frt5M-znKMwJ:allegro.pl/samsung-galaxy-s8-wyswietlacz-do-wymiany-bcm-i6876424141.html+&cd=2&hl=pl&ct=clnk&gl=pl";
     private String urlPattern = "(www|http)[a-zA-Z._~:/?#@!$&'()*+,;=\\d\\[\\]]+";
     Pattern pattern = Pattern.compile(urlPattern);
     public WebCrawler(){
     }
 
+    public String crawl(){
+        return crawl(initialSite);
+    }
+
     public String crawl(String url){
+        VisitedUrl visitedUrl  = new VisitedUrl();
+        visitedUrl.setUrl(url);
+        visitedUrlRepository.save(visitedUrl);
         Document xml = null;
         try {
             xml = Jsoup.connect(url).get();
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
-        VisitedUrl visitedUrl  = new VisitedUrl();
-        visitedUrl.setParsed(false);
-        visitedUrl.setUrl(url);
-        visitedUrlRepository.save(visitedUrl);
-        for(Element element : xml.getAllElements().stream().filter(el->
-                 el.ownText().contains("allegro") || el.getElementsByAttribute("href").size()>0).collect(Collectors.toList())){
-             Matcher matcher = pattern.matcher(element.ownText());
-             while (matcher.find())
-             {
-                 String anotherUrl=matcher.group();
-                 if(visitedUrlRepository.getOne(anotherUrl) != null) crawl(anotherUrl);
-             }
-             for(Element att: element.getElementsByAttribute("href")){
-                 Matcher attMatcher = pattern.matcher(att.attr("href"));
-                 while (attMatcher.find())
-                 {
-                     String anotherUrl=attMatcher.group();
-                     if(visitedUrlRepository.getOne(anotherUrl) != null) crawl(anotherUrl);
-                 }
+
+        if(!url.endsWith(".css")){
+            WebParser wp = new WebParser(url);
+            Thread t1 = new Thread(wp);
+            t1.start();
+        }
+        {
+        for(String href : xml.getAllElements().stream().map(element -> element.attr("href")).filter(
+                e->!e.isEmpty() &&
+                       e.startsWith("http") && e.contains("allegro.pl/") && !e.endsWith(".css")).collect(Collectors.toList()))
+        if(visitedUrlRepository.findByUrl(href) ==null)
+            {
+                     crawl(href);
              }
          }
          return url;
-    }
-
-
-    @Override
-    public void run() {
-        for(String init: initialSites){
-            crawl(init);
-        }
     }
 }
