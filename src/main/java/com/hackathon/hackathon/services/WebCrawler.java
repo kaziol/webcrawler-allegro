@@ -18,7 +18,6 @@ public class WebCrawler  {
     @Autowired
     VisitedUrlRepository visitedUrlRepository;
     public final String initialSite= "https://allegro.pl/";
-  //  public final String initialSite= "https://webcache.googleusercontent.com/search?q=cache:Frt5M-znKMwJ:allegro.pl/samsung-galaxy-s8-wyswietlacz-do-wymiany-bcm-i6876424141.html+&cd=2&hl=pl&ct=clnk&gl=pl";
     private String urlPattern = "(www|http)[a-zA-Z._~:/?#@!$&'()*+,;=\\d\\[\\]]+";
     Pattern pattern = Pattern.compile(urlPattern);
     public WebCrawler(){
