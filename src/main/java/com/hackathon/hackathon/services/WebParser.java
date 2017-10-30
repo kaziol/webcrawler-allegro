@@ -34,26 +34,6 @@ public class WebParser implements Runnable {
             "twoje","ty","wam","wami","was","wasi","wasz","wasza","wasze","we","wiec","wszystko","wtedy","wy",
             "zaden","zawsze","ze"};
 
-    final String [] categoriesArray={"Fotografia","Akcesoria fotograficzne","Aparaty analogowe","Aparaty cyfrowe",
-            "Karty pamięci","Lampy błyskowe","Obiektywy","Wyposażenie studia","Zasilanie aparatów","Literatura i instrukcje",
-            "Sprzęt optyczny","Usługi","Pozostałe","Komputery","Akcesoria (Laptop, PC)","Części do laptopów","Drukarki i skanery",
-            "Dyski i pamięci przenośne","Dźwięk","Internet","Komputery stacjonarne","Komunikacja i łączność","Laptopy","Mikrokomputery",
-            "Napędy optyczne i nośniki","Obraz i grafika","Obudowy i zasilanie","Oprogramowanie","Podzespoły bazowe",
-            "Serwery i SCSI","Tablety","Urządzenia wskazujące","Usługi","Pozostałe","Konsole i automaty","Game Boy",
-            "Game Boy Advance","Microsoft Xbox","Microsoft Xbox 360","Microsoft Xbox One","Nintendo 3DS","Nintendo 64","" +
-            "Nintendo DS","Nintendo GameCube","Nintendo Switch","Nintendo Wii U","Nintendo (SNES i NES)","Nintendo Wii",
-            "Sega Dreamcast","Sega (inne)","Sony PlayStation (PSX)","Sony PlayStation 2 (PS2)","Sony PlayStation 3 (PS3)",
-            "Sony PlayStation 4 (PS4)","Sony PS Vita","Sony PSP","'Gierki' elektroniczne","Pegasus","Automaty do gier","Usługi",
-            "Pozostałe","RTV i AGD","AGD do zabudowy","AGD drobne","AGD wolnostojące","Czytniki ebooków","Elektronika",
-            "GPS i akcesoria","Kamery","Piloty","Sprzęt audio dla domu","Sprzęt audio przenośny","Sprzęt car audio","Sprzęt satelitarny",
-            "Słuchawki","TV i Video","Zasilanie","Pozostałe","Usługi","Karty Allegro","Sprzęt estradowy, studyjny i DJ-ski",
-            "CD-playery dla DJ-ów","Gramofony dla DJ-ów","Kable, przewody i wtyki","Mikrofony","Miksery audio","Nagłośnienie",
-            "Sceny, estrady, podesty","Słuchawki","Video dla studia","Walizki i torby","Światło i efekty","Urządzenia rejestrujące",
-            "Literatura i instrukcje","Pozostałe","Usługi","Telefony i Akcesoria","Abonamenty","Akcesoria GSM","Karty pamięci",
-            "Powerbanki","Pre-paid","Radiokomunikacja","Smartwatch","Telefony komórkowe","Urządzenia stacjonarne","Złote numery",
-            "Pozostałe","Usługi"};
-    final List<String> categoriesElectrions =Arrays.asList(categoriesArray);
-
     private String url;
 
     org.jsoup.nodes.Document xml;
@@ -73,34 +53,26 @@ public class WebParser implements Runnable {
         try {
             phrases = new LinkedHashMap<>();
             xml = Jsoup.connect(url).get();
-            List<Element> categories = xml.getElementsByAttribute("href").stream().filter(e -> e.attr("href").
-                    contains("kategoria")).collect(Collectors.toList());
-            String mainCategory=categories.get(0).getElementsByTag("span").first().ownText();
-
-            if(!categoriesElectrions.contains(mainCategory)) return null;
-            String user = xml.getElementsByClass("btn-user").first().getElementsByTag("span").first().ownText();
-            user = user.replaceAll(" {2,}", "");
-            phrases.put("uzytkownik", user);
-
-            //TODO: EMAIL, USER
-            String price = xml.getElementsByAttribute("data-price").attr("data-price");
-            if(price==null || price.isEmpty()) return null;
-
-            String category=categories.get(1).getElementsByTag("span").first().ownText();
-
-            phrases.put("kategoria", category);
-
-            phrases.put("cena", removeSpecChars(price));
-            String mail = xml.getElementsByAttribute("href").stream().filter(element -> element.attr("href").
-                    contains("mailto:")).findFirst().get().ownText();
-            phrases.put("email", mail);
-
-            String count = xml.getElementsByAttribute("max").first().attr("max");
-            phrases.put("ilosc", count);
-
-
-
-
+            try {
+                List<Element> categories = xml.getElementsByAttribute("href").stream().filter(e -> e.attr("href").
+                        contains("kategoria")).collect(Collectors.toList());
+                String mainCategory = categories.get(0).getElementsByTag("span").first().ownText();
+                String user = xml.getElementsByClass("btn-user").first().getElementsByTag("span").first().ownText();
+                user = user.replaceAll(" {2,}", "");
+                phrases.put("uzytkownik", user);
+                String price = xml.getElementsByAttribute("data-price").attr("data-price");
+                if (price == null || price.isEmpty()) return null;
+                String category = categories.get(1).getElementsByTag("span").first().ownText();
+                phrases.put("kategoria", category);
+                phrases.put("cena", removeSpecChars(price));
+                String mail = xml.getElementsByAttribute("href").stream().filter(element -> element.attr("href").
+                        contains("mailto:")).findFirst().get().ownText();
+                phrases.put("email", mail);
+                String count = xml.getElementsByAttribute("max").first().attr("max");
+                phrases.put("ilosc", count);
+            }catch (NullPointerException | IndexOutOfBoundsException ex){
+                ex.getMessage();
+            }
             String description = getDescritpion();
             phrases.put("description", description);
             String auctionTitle = xml.getElementsByTag("title").first().ownText();
@@ -129,7 +101,7 @@ public class WebParser implements Runnable {
                 String value=record.getElementsByClass("attribute-value").first().ownText();
                 phrases.put(removeSpecChars(key),removeSpecChars(value));
             }
-            if(phrases.size()==0 || !phrases.get("stan").equals("nowy")) return null;
+            if(phrases.size()==0) return null;
         } catch (IndexOutOfBoundsException | IOException e) {
             e.printStackTrace();
             System.out.println(url);
@@ -142,7 +114,7 @@ public class WebParser implements Runnable {
         List<String> descriptionStrings=xml.getAllElements().stream().filter(element -> !element.ownText().isEmpty()).map(e->removeSpecChars(e.ownText()).replaceAll("[\\d]+", ""))
                 .distinct().collect(Collectors.toList());
         String desc= descriptionStrings.toString();
-        return removeExcludedWords(desc);
+        return removeExcludedWords(removeSpecChars(desc.toLowerCase()));
     }
 
     private String removeSpecChars(String input){
@@ -181,14 +153,14 @@ public class WebParser implements Runnable {
             String description = phrases.remove("description");
             String auctionId = phrases.remove("auctionId");
             for(String key:phrases.keySet()){
-                out.write(removeSpecChars(key)+"\t");
+                out.write(removeSpecChars(key.toLowerCase())+"\t");
             }
             out.write("\r\n");
             for(String value:phrases.values()){
-                out.write(removeSpecChars(value)+"\t");
+                out.write(removeSpecChars(value.toLowerCase())+"\t");
             }
             out.write("\r\n");
-            out.write(removeSpecChars(description));
+            out.write(description);
             out.write("\r\n");
             out.close();
             VisitedUrl visitedUrl = new VisitedUrl();
@@ -205,8 +177,7 @@ public class WebParser implements Runnable {
     @Override
     @Transactional
     public void run() {
-        boolean alreadyParsed= visitedUrlRepository.findByUrl(url).getParsed();
-        if(!alreadyParsed)
+        if(!visitedUrlRepository.findByUrl(url).getParsed())
         saveTextFileFromWebsite(getParameters());
     }
 }
